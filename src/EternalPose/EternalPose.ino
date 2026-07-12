@@ -2,6 +2,7 @@
 #include "PowerManager.h"
 #include "DisplayManager.h"
 #include "CompassManager.h"
+#include "BLEManager.hpp"
 
 void setup() {
     Serial.begin(115200);
@@ -23,17 +24,24 @@ void setup() {
 
     CompassManager::init();
     Serial.println("[SYSTEM] CompassManager ok.");
+
+    BLEManager::init();
 }
 
 void loop() {
-    // Obtenemos el ángulo del sensor
-    float angulo = CompassManager::getOrientationAngle();
-    
-    // Giramos la aguja visualmente
-    DisplayManager::updateCompass(angulo);
+    float anguloFinal = 0.0;
 
-    // Mantenemos viva la pantalla
+    if (BLEManager::hasFix()) {
+        float rumboCasa = BLEManager::getBearingToHome();          // hacia dónde está casa (0-360, absoluto)
+        float orientacionReloj = CompassManager::getOrientationAngle(); // hacia dónde apunta el reloj ahora
+        anguloFinal = fmod((rumboCasa - orientacionReloj + 360.0), 360.0);
+    }
+
+    static float lastAngle = -999.0;
+    if (abs(anguloFinal - lastAngle) > 0.5) {
+        DisplayManager::updateCompass(anguloFinal);
+        lastAngle = anguloFinal;
+    }
+
     DisplayManager::update();
-
-    delay(20); 
 }
